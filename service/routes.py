@@ -23,27 +23,18 @@ from service.common import status  # HTTP Status Codes
 from . import app
 
 
-######################################################################
-# H E A L T H   C H E C K
-######################################################################
 @app.route("/health")
 def healthcheck():
     """Let them know our heart is still beating"""
     return jsonify(status=200, message="OK"), status.HTTP_200_OK
 
 
-######################################################################
-# H O M E   P A G E
-######################################################################
 @app.route("/")
 def index():
     """Base URL for our service"""
     return app.send_static_file("index.html")
 
 
-######################################################################
-#  U T I L I T Y   F U N C T I O N S
-######################################################################
 def check_content_type(content_type):
     """Checks that the media type is correct"""
     if "Content-Type" not in request.headers:
@@ -61,15 +52,9 @@ def check_content_type(content_type):
     )
 
 
-######################################################################
-# C R E A T E   A   N E W   P R O D U C T
-######################################################################
 @app.route("/products", methods=["POST"])
 def create_products():
-    """
-    Creates a Product
-    This endpoint will create a Product based the data in the body that is posted
-    """
+    """Creates a Product"""
     app.logger.info("Request to Create a Product...")
     check_content_type("application/json")
     data = request.get_json()
@@ -83,9 +68,6 @@ def create_products():
     return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
 
 
-######################################################################
-# L I S T   A L L   P R O D U C T S
-######################################################################
 @app.route("/products", methods=["GET"])
 def list_products():
     """Returns all of the Products"""
@@ -93,26 +75,27 @@ def list_products():
     name = request.args.get("name")
     category = request.args.get("category")
     available = request.args.get("available")
+
     if name:
         app.logger.info("Filtering by name: %s", name)
         products = Product.find_by_name(name)
-    elif category:
+    elif category and category != "UNKNOWN":
         app.logger.info("Filtering by category: %s", category)
-        category_value = getattr(Category, category)
+        category_value = getattr(Category, category.upper())
         products = Product.find_by_category(category_value)
-    elif available:
+    elif available and category == "UNKNOWN":
         app.logger.info("Filtering by availability: %s", available)
-        products = Product.find_by_availability(available.lower() in ["true", "1", "yes"])
+        available_value = available.lower() in ["true", "yes", "1"]
+        products = Product.find_by_availability(available_value)
     else:
+        app.logger.info("Returning all products")
         products = Product.all()
+
     results = [p.serialize() for p in products]
     app.logger.info("Returning %d products", len(results))
     return jsonify(results), status.HTTP_200_OK
 
 
-######################################################################
-# R E A D   A   P R O D U C T
-######################################################################
 @app.route("/products/<int:product_id>", methods=["GET"])
 def get_products(product_id):
     """Retrieve a single Product"""
@@ -123,9 +106,6 @@ def get_products(product_id):
     return product.serialize(), status.HTTP_200_OK
 
 
-######################################################################
-# U P D A T E   A   P R O D U C T
-######################################################################
 @app.route("/products/<int:product_id>", methods=["PUT"])
 def update_products(product_id):
     """Update a Product"""
@@ -139,9 +119,6 @@ def update_products(product_id):
     return product.serialize(), status.HTTP_200_OK
 
 
-######################################################################
-# D E L E T E   A   P R O D U C T
-######################################################################
 @app.route("/products/<int:product_id>", methods=["DELETE"])
 def delete_products(product_id):
     """Delete a Product"""
